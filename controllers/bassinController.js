@@ -1,4 +1,4 @@
-const db = require('../config/database');
+//const db = require('../config/database');
 
 // ✅ DONNÉES MOCKÉES UNIQUEMENT - PAS DE DB
 const mockBassins = [

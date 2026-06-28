@@ -1,4 +1,4 @@
-const db = require('../config/database');
+//const db = require('../config/database');
 
 const mockMesures = [
     { id: 1, bassin_id: 1, date_mesure: '2026-06-20', temperature: 22.0, oxygene: 8.5, ph: 7.2, ammoniac: 0.02 },

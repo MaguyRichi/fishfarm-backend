@@ -1,4 +1,4 @@
-const db = require('../config/database');
+//const db = require('../config/database');
 
 exports.getStats = (req, res) => {
     try {

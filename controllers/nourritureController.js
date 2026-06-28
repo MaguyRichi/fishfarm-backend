@@ -1,4 +1,4 @@
-const db = require('../config/database');
+//const db = require('../config/database');
 
 const mockStocks = [
     { id: 1, type_nourriture: 'Aliment Tilapia', quantite: 150, unite: 'kg', statut: 'Bon', seuil_alerte: 50, jours_restants: 10 },
