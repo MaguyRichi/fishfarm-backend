@@ -27,7 +27,7 @@ app.use('/api/croissance', croissanceRoutes);
 app.use('/api/nourriture', nourritureRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/qualite-eau', qualiteEauRoutes);
-app.use('/api/croissance-espece', croissanceEspeceRoutes);
+//app.use('/api/croissance-espece', croissanceEspeceRoutes);
 
 // Route de test
 app.get('/api/health', (req, res) => {
