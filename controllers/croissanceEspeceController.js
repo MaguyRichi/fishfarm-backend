@@ -2,7 +2,7 @@ const db = require('../config/database');
 
 exports.getCroissanceEspece = async (req, res) => {
     try {
-        // Requête SQL simplifiée et robuste
+        // ✅ Utiliser la table 'bassins' existante
         const result = await db.query(
             `SELECT 
                 espece, 
@@ -16,7 +16,7 @@ exports.getCroissanceEspece = async (req, res) => {
         res.json(result.rows);
     } catch (error) {
         console.error('❌ Erreur getCroissanceEspece:', error.message);
-        // En cas d'erreur, on renvoie un tableau vide pour ne pas bloquer l'app
+        // ✅ En cas d'erreur, renvoyer un tableau vide pour ne pas bloquer l'app
         res.status(200).json([]);
     }
 };
