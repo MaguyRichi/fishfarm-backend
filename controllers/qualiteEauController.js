@@ -11,17 +11,39 @@ exports.getAllMesures = async (req, res) => {
 };
 
 exports.addMesure = async (req, res) => {
-    const { bassin_id, temperature, oxygene, ph, ammoniac } = req.body;
+    const { bassinId, temperature, oxygene, ph, ammoniac } = req.body;
     try {
+        // ✅ Vérifier que bassinId existe
+        const checkBassin = await db.query('SELECT id FROM bassins WHERE id = $1', [bassinId]);
+        if (checkBassin.rows.length === 0) {
+            return res.status(404).json({ error: 'Bassin non trouvé' });
+        }
+        
         const result = await db.query(
             `INSERT INTO qualite_eau (bassin_id, date_mesure, temperature, oxygene, ph, ammoniac)
              VALUES ($1, CURRENT_DATE, $2, $3, $4, $5) RETURNING *`,
-            [bassin_id, temperature, oxygene, ph, ammoniac]
+            [bassinId, temperature || 22.0, oxygene || 7.0, ph || 7.0, ammoniac || 0.02]
         );
+        
+        // ✅ Mettre à jour l'oxygène du bassin
+        const oxygeneValue = parseFloat(oxygene) || 7.0;
+        const alerte = oxygeneValue < 5.0;
+        const statut = alerte ? 'Attention' : 'Optimal';
+        
+        await db.query(
+            `UPDATE bassins SET 
+                oxygene = $1, 
+                alerte = $2,
+                statut = $3,
+                updated_at = CURRENT_TIMESTAMP
+             WHERE id = $4`,
+            [oxygeneValue, alerte, statut, bassinId]
+        );
+        
         res.status(201).json(result.rows[0]);
     } catch (error) {
         console.error('❌ Erreur addMesure:', error);
-        res.status(500).json({ error: 'Erreur serveur' });
+        res.status(500).json({ error: 'Erreur serveur', details: error.message });
     }
 };
 

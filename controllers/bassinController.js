@@ -65,7 +65,7 @@ exports.updateBassin = async (req, res) => {
         let updateStatut = statut;
         
         // ✅ Si l'oxygène est modifié, mettre à jour l'alerte automatiquement
-        if (oxygene !== undefined) {
+        if (oxygene !== undefined && oxygene !== null) {
             const oxygeneValue = parseFloat(oxygene) || 0;
             updateAlerte = oxygeneValue < 5.0;
             updateStatut = updateAlerte ? 'Attention' : 'Optimal';
