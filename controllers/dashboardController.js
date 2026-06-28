@@ -1,9 +1,7 @@
 const db = require('../config/database');
 
-exports.getStats = async (req, res) => {
+exports.getStats = (req, res) => {
     try {
-        // const result = await db.query('SELECT COUNT(*) as total, SUM(population) as poissons FROM bassins');
-        // const stats = result.rows[0];
         const stats = {
             bassinsTotal: 4,
             poissonsTotal: 650,
@@ -17,7 +15,7 @@ exports.getStats = async (req, res) => {
     }
 };
 
-exports.getWaterQuality = async (req, res) => {
+exports.getWaterQuality = (req, res) => {
     try {
         const qualite = {
             temperature: 22.0,
@@ -32,10 +30,11 @@ exports.getWaterQuality = async (req, res) => {
     }
 };
 
-exports.getAlerts = async (req, res) => {
+exports.getAlerts = (req, res) => {
     try {
         const alerts = [
-            { type_alerte: 'Température', niveau: 'Alerte', bassin_nom: 'Bassin C', valeur: 23, seuil: 22, description: 'Température élevée', date_alerte: '2026-06-22' }
+            { type_alerte: 'Température', niveau: 'Alerte', bassin_nom: 'Bassin C', valeur: 23, seuil: 22, description: 'Température élevée', date_alerte: '2026-06-22' },
+            { type_alerte: 'Oxygène', niveau: 'Alerte', bassin_nom: 'Bassin C', valeur: 4.5, seuil: 5.0, description: "Niveau d'oxygène bas", date_alerte: '2026-06-22' }
         ];
         res.json(alerts);
     } catch (error) {
@@ -44,7 +43,7 @@ exports.getAlerts = async (req, res) => {
     }
 };
 
-exports.getKPIs = async (req, res) => {
+exports.getKPIs = (req, res) => {
     try {
         const kpis = {
             poidsMoyen: 145.5,

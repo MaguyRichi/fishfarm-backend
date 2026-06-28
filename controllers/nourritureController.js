@@ -1,6 +1,5 @@
 const db = require('../config/database');
 
-// ✅ DONNÉES MOCKÉES
 const mockStocks = [
     { id: 1, type_nourriture: 'Aliment Tilapia', quantite: 150, unite: 'kg', statut: 'Bon', seuil_alerte: 50, jours_restants: 10 },
     { id: 2, type_nourriture: 'Aliment Sea Bass', quantite: 200, unite: 'kg', statut: 'Bon', seuil_alerte: 60, jours_restants: 12 },
@@ -9,13 +8,12 @@ const mockStocks = [
 
 const mockSessions = [
     { id: 1, heure: '08:00', periode: 'MATIN', bassin_nom: 'Bassin A', espece: 'Tilapia', quantite: 25, type_nourriture: 'Aliment Tilapia', statut: 'PROGRAMMÉ' },
-    { id: 2, heure: '08:30', periode: 'MATIN', bassin_nom: 'Bassin B', espece: 'Sea Bass', quantite: 30, type_nourriture: 'Aliment Sea Bass', statut: 'PROGRAMMÉ' }
+    { id: 2, heure: '08:30', periode: 'MATIN', bassin_nom: 'Bassin B', espece: 'Sea Bass', quantite: 30, type_nourriture: 'Aliment Sea Bass', statut: 'PROGRAMMÉ' },
+    { id: 3, heure: '12:00', periode: 'MIDI', bassin_nom: 'Bassin C', espece: 'Truite Arc-en-ciel', quantite: 20, type_nourriture: 'Aliment Truite', statut: 'PROGRAMMÉ' }
 ];
 
-exports.getStocks = async (req, res) => {
+exports.getStocks = (req, res) => {
     try {
-        // const result = await db.query('SELECT * FROM stocks ORDER BY id');
-        // res.json(result.rows);
         res.json(mockStocks);
     } catch (error) {
         console.error(error);
@@ -23,19 +21,7 @@ exports.getStocks = async (req, res) => {
     }
 };
 
-exports.getSessions = async (req, res) => {
-    try {
-        // const result = await db.query('SELECT * FROM sessions_nourriture ORDER BY id');
-        // res.json(result.rows);
-        res.json(mockSessions);
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: 'Erreur serveur' });
-    }
-};
-
-// Gardez les autres fonctions avec des données mockées
-exports.addStock = async (req, res) => {
+exports.addStock = (req, res) => {
     try {
         const newStock = { id: mockStocks.length + 1, ...req.body };
         mockStocks.push(newStock);
@@ -46,7 +32,7 @@ exports.addStock = async (req, res) => {
     }
 };
 
-exports.updateStock = async (req, res) => {
+exports.updateStock = (req, res) => {
     try {
         const index = mockStocks.findIndex(s => s.id === parseInt(req.params.id));
         if (index === -1) return res.status(404).json({ error: 'Stock non trouvé' });
@@ -58,7 +44,7 @@ exports.updateStock = async (req, res) => {
     }
 };
 
-exports.deleteStock = async (req, res) => {
+exports.deleteStock = (req, res) => {
     try {
         const index = mockStocks.findIndex(s => s.id === parseInt(req.params.id));
         if (index === -1) return res.status(404).json({ error: 'Stock non trouvé' });
@@ -70,7 +56,16 @@ exports.deleteStock = async (req, res) => {
     }
 };
 
-exports.addSession = async (req, res) => {
+exports.getSessions = (req, res) => {
+    try {
+        res.json(mockSessions);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Erreur serveur' });
+    }
+};
+
+exports.addSession = (req, res) => {
     try {
         const newSession = { id: mockSessions.length + 1, ...req.body };
         mockSessions.push(newSession);
@@ -81,7 +76,7 @@ exports.addSession = async (req, res) => {
     }
 };
 
-exports.updateSession = async (req, res) => {
+exports.updateSession = (req, res) => {
     try {
         const index = mockSessions.findIndex(s => s.id === parseInt(req.params.id));
         if (index === -1) return res.status(404).json({ error: 'Session non trouvée' });

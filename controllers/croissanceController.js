@@ -1,6 +1,6 @@
 const db = require('../config/database');
 
-// ✅ DONNÉES MOCKÉES
+// ✅ DONNÉES MOCKÉES UNIQUEMENT
 const mockCroissance = [
     { semaine: 1, poids_reel: 100, poids_industriel: 95 },
     { semaine: 2, poids_reel: 110, poids_industriel: 108 },
@@ -10,15 +10,13 @@ const mockCroissance = [
 ];
 
 const mockEchantillons = [
-    { id: 1, date_echantillon: '2026-06-20', poids_moyen: 120, ecart_type: 5.2, mortalite: 0.02, statut: 'Optimal' },
-    { id: 2, date_echantillon: '2026-06-21', poids_moyen: 125, ecart_type: 4.8, mortalite: 0.01, statut: 'Optimal' },
-    { id: 3, date_echantillon: '2026-06-22', poids_moyen: 130, ecart_type: 6.1, mortalite: 0.15, statut: 'Alerte' }
+    { id: 1, date_echantillon: '2026-06-20', poids_moyen: 120, ecart_type: 5.2, mortalite: 0.02, statut: 'Optimal', bassin_id: 1 },
+    { id: 2, date_echantillon: '2026-06-21', poids_moyen: 125, ecart_type: 4.8, mortalite: 0.01, statut: 'Optimal', bassin_id: 1 },
+    { id: 3, date_echantillon: '2026-06-22', poids_moyen: 130, ecart_type: 6.1, mortalite: 0.15, statut: 'Alerte', bassin_id: 2 }
 ];
 
-exports.getCroissanceData = async (req, res) => {
+exports.getCroissanceData = (req, res) => {
     try {
-        // const result = await db.query('SELECT * FROM croissance ORDER BY semaine');
-        // res.json(result.rows);
         res.json(mockCroissance);
     } catch (error) {
         console.error(error);
@@ -26,10 +24,8 @@ exports.getCroissanceData = async (req, res) => {
     }
 };
 
-exports.getEchantillonnages = async (req, res) => {
+exports.getEchantillonnages = (req, res) => {
     try {
-        // const result = await db.query('SELECT * FROM echantillonnages ORDER BY date_echantillon DESC');
-        // res.json(result.rows);
         res.json(mockEchantillons);
     } catch (error) {
         console.error(error);
@@ -37,8 +33,7 @@ exports.getEchantillonnages = async (req, res) => {
     }
 };
 
-// Gardez les autres fonctions avec les données mockées ou commentées
-exports.addEchantillonnage = async (req, res) => {
+exports.addEchantillonnage = (req, res) => {
     try {
         const newEchantillon = { id: mockEchantillons.length + 1, ...req.body };
         mockEchantillons.push(newEchantillon);
@@ -49,7 +44,7 @@ exports.addEchantillonnage = async (req, res) => {
     }
 };
 
-exports.getCroissanceEspece = async (req, res) => {
+exports.getCroissanceEspece = (req, res) => {
     try {
         const especes = [
             { espece: 'Tilapia', population: 150, nombre_bassins: 1 },
@@ -64,7 +59,7 @@ exports.getCroissanceEspece = async (req, res) => {
     }
 };
 
-exports.generateRapport = async (req, res) => {
+exports.generateRapport = (req, res) => {
     try {
         const rapport = {
             date: new Date().toISOString(),
@@ -94,7 +89,7 @@ exports.generateRapport = async (req, res) => {
     }
 };
 
-exports.exportData = async (req, res) => {
+exports.exportData = (req, res) => {
     try {
         res.json({ message: 'Exportation réussie', format: 'PDF' });
     } catch (error) {
