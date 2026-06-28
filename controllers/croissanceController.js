@@ -21,17 +21,18 @@ exports.getEchantillonnages = async (req, res) => {
 };
 
 exports.addEchantillonnage = async (req, res) => {
-    const { date_echantillon, poids_moyen, ecart_type, mortalite, statut, bassin_id } = req.body;
+    const { date, poids, ecart, mortalite, statut, bassinId } = req.body;
     try {
+        // Vérifiez que bassinId est bien utilisé
         const result = await db.query(
             `INSERT INTO echantillonnages (date_echantillon, poids_moyen, ecart_type, mortalite, statut, bassin_id)
              VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-            [date_echantillon, poids_moyen, ecart_type, mortalite || 0, statut || 'Optimal', bassin_id || 1]
+            [date, poids, ecart, mortalite, statut || 'Optimal', bassinId || 1]
         );
         res.status(201).json(result.rows[0]);
     } catch (error) {
         console.error('❌ Erreur addEchantillonnage:', error);
-        res.status(500).json({ error: 'Erreur serveur' });
+        res.status(500).json({ error: 'Erreur serveur', details: error.message });
     }
 };
 
