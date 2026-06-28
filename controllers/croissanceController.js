@@ -1,99 +1,107 @@
-//const db = require('../config/database');
+const db = require('../config/database');
 
-// ✅ DONNÉES MOCKÉES UNIQUEMENT
-const mockCroissance = [
-    { semaine: 1, poids_reel: 100, poids_industriel: 95 },
-    { semaine: 2, poids_reel: 110, poids_industriel: 108 },
-    { semaine: 3, poids_reel: 120, poids_industriel: 115 },
-    { semaine: 4, poids_reel: 130, poids_industriel: 125 },
-    { semaine: 5, poids_reel: 145, poids_industriel: 138 }
-];
-
-const mockEchantillons = [
-    { id: 1, date_echantillon: '2026-06-20', poids_moyen: 120, ecart_type: 5.2, mortalite: 0.02, statut: 'Optimal', bassin_id: 1 },
-    { id: 2, date_echantillon: '2026-06-21', poids_moyen: 125, ecart_type: 4.8, mortalite: 0.01, statut: 'Optimal', bassin_id: 1 },
-    { id: 3, date_echantillon: '2026-06-22', poids_moyen: 130, ecart_type: 6.1, mortalite: 0.15, statut: 'Alerte', bassin_id: 2 }
-];
-
-exports.getCroissanceData = (req, res) => {
+exports.getCroissanceData = async (req, res) => {
     try {
-        res.json(mockCroissance);
+        const result = await db.query('SELECT * FROM croissance ORDER BY semaine');
+        res.json(result.rows);
     } catch (error) {
-        console.error(error);
+        console.error('❌ Erreur getCroissanceData:', error);
         res.status(500).json({ error: 'Erreur serveur' });
     }
 };
 
-exports.getEchantillonnages = (req, res) => {
+exports.getEchantillonnages = async (req, res) => {
     try {
-        res.json(mockEchantillons);
+        const result = await db.query('SELECT * FROM echantillonnages ORDER BY date_echantillon DESC');
+        res.json(result.rows);
     } catch (error) {
-        console.error(error);
+        console.error('❌ Erreur getEchantillonnages:', error);
         res.status(500).json({ error: 'Erreur serveur' });
     }
 };
 
-exports.addEchantillonnage = (req, res) => {
+exports.addEchantillonnage = async (req, res) => {
+    const { date_echantillon, poids_moyen, ecart_type, mortalite, statut, bassin_id } = req.body;
     try {
-        const newEchantillon = { id: mockEchantillons.length + 1, ...req.body };
-        mockEchantillons.push(newEchantillon);
-        res.status(201).json(newEchantillon);
+        const result = await db.query(
+            `INSERT INTO echantillonnages (date_echantillon, poids_moyen, ecart_type, mortalite, statut, bassin_id)
+             VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+            [date_echantillon, poids_moyen, ecart_type, mortalite || 0, statut || 'Optimal', bassin_id || 1]
+        );
+        res.status(201).json(result.rows[0]);
     } catch (error) {
-        console.error(error);
+        console.error('❌ Erreur addEchantillonnage:', error);
         res.status(500).json({ error: 'Erreur serveur' });
     }
 };
 
-exports.getCroissanceEspece = (req, res) => {
+exports.getCroissanceEspece = async (req, res) => {
     try {
-        const especes = [
-            { espece: 'Tilapia', population: 150, nombre_bassins: 1 },
-            { espece: 'Sea Bass', population: 200, nombre_bassins: 1 },
-            { espece: 'Truite Arc-en-ciel', population: 120, nombre_bassins: 1 },
-            { espece: 'Carpe', population: 180, nombre_bassins: 1 }
-        ];
-        res.json(especes);
+        const result = await db.query(
+            `SELECT espece, COUNT(*) as nombre_bassins, SUM(population) as population 
+             FROM bassins 
+             GROUP BY espece`
+        );
+        res.json(result.rows);
     } catch (error) {
-        console.error(error);
+        console.error('❌ Erreur getCroissanceEspece:', error);
         res.status(500).json({ error: 'Erreur serveur' });
     }
 };
 
-exports.generateRapport = (req, res) => {
+exports.generateRapport = async (req, res) => {
     try {
-        const rapport = {
+        const stats = await db.query(
+            `SELECT 
+                COUNT(*) as total_bassins,
+                SUM(population) as total_poissons,
+                AVG(densite) as densite_moyenne,
+                COUNT(CASE WHEN alerte = true THEN 1 END) as bassins_alerte
+             FROM bassins`
+        );
+        
+        const especes = await db.query(
+            `SELECT espece, SUM(population) as population, COUNT(*) as nombre_bassins 
+             FROM bassins 
+             GROUP BY espece`
+        );
+        
+        const qualite = await db.query(
+            `SELECT 
+                AVG(temperature) as temp_moyenne,
+                AVG(oxygene) as oxygene_moyen,
+                AVG(ph) as ph_moyen,
+                AVG(ammoniac) as ammoniac_moyen
+             FROM qualite_eau
+             WHERE date_mesure >= NOW() - INTERVAL '7 days'`
+        );
+        
+        const echantillons = await db.query(
+            `SELECT date_echantillon, poids_moyen, statut 
+             FROM echantillonnages 
+             ORDER BY date_echantillon DESC 
+             LIMIT 3`
+        );
+        
+        res.json({
             date: new Date().toISOString(),
-            statistiques: {
-                total_bassins: 4,
-                total_poissons: 650,
-                densite_moyenne: 45.2,
-                bassins_alerte: 1
-            },
-            croissanceEspece: [
-                { espece: 'Tilapia', population: 150, nombre_bassins: 1 },
-                { espece: 'Sea Bass', population: 200, nombre_bassins: 1 },
-                { espece: 'Truite Arc-en-ciel', population: 120, nombre_bassins: 1 },
-                { espece: 'Carpe', population: 180, nombre_bassins: 1 }
-            ],
-            qualiteEau: {
-                temp_moyenne: 21.5,
-                oxygene_moyen: 7.8,
-                ph_moyen: 7.2,
-                ammoniac_moyen: 0.025
-            }
-        };
-        res.json(rapport);
+            statistiques: stats.rows[0],
+            croissanceEspece: especes.rows,
+            qualiteEau: qualite.rows[0] || {},
+            echantillonnages: echantillons.rows
+        });
     } catch (error) {
-        console.error(error);
+        console.error('❌ Erreur generateRapport:', error);
         res.status(500).json({ error: 'Erreur serveur' });
     }
 };
 
-exports.exportData = (req, res) => {
+exports.exportData = async (req, res) => {
     try {
-        res.json({ message: 'Exportation réussie', format: 'PDF' });
+        const { format } = req.body;
+        res.json({ message: 'Exportation réussie', format: format || 'PDF' });
     } catch (error) {
-        console.error(error);
+        console.error('❌ Erreur exportData:', error);
         res.status(500).json({ error: 'Erreur serveur' });
     }
 };

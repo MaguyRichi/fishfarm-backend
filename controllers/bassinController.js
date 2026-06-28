@@ -1,65 +1,96 @@
-// ✅ PAS d'import de db ici !
+const db = require('../config/database');
 
-const mockBassins = [
-    { id: 1, nom: 'Bassin A', espece: 'Tilapia', densite: 2.5, population: 150, statut: 'Optimal', oxygene: 8.5, temperature: 22.0, dernier_repas: '08:00', alerte: false },
-    { id: 2, nom: 'Bassin B', espece: 'Sea Bass', densite: 3.0, population: 200, statut: 'Optimal', oxygene: 7.8, temperature: 21.0, dernier_repas: '09:30', alerte: false },
-    { id: 3, nom: 'Bassin C', espece: 'Truite Arc-en-ciel', densite: 4.0, population: 120, statut: 'Attention', oxygene: 4.5, temperature: 23.0, dernier_repas: '10:00', alerte: true },
-    { id: 4, nom: 'Bassin D', espece: 'Carpe', densite: 2.8, population: 180, statut: 'Optimal', oxygene: 7.2, temperature: 22.5, dernier_repas: '11:00', alerte: false }
-];
-
-exports.getAllBassins = (req, res) => {
+exports.getAllBassins = async (req, res) => {
     try {
-        res.json(mockBassins);
+        const result = await db.query('SELECT * FROM bassins ORDER BY id');
+        res.json(result.rows);
     } catch (error) {
         console.error('❌ Erreur getAllBassins:', error);
         res.status(500).json({ error: 'Erreur serveur' });
     }
 };
 
-exports.getBassinById = (req, res) => {
+exports.getBassinById = async (req, res) => {
     try {
-        const bassin = mockBassins.find(b => b.id === parseInt(req.params.id));
-        if (!bassin) {
+        const result = await db.query('SELECT * FROM bassins WHERE id = $1', [req.params.id]);
+        if (result.rows.length === 0) {
             return res.status(404).json({ error: 'Bassin non trouvé' });
         }
-        res.json(bassin);
+        res.json(result.rows[0]);
     } catch (error) {
         console.error('❌ Erreur getBassinById:', error);
         res.status(500).json({ error: 'Erreur serveur' });
     }
 };
 
-exports.createBassin = (req, res) => {
+exports.createBassin = async (req, res) => {
+    const { nom, espece, densite, population, statut, oxygene, temperature, dernier_repas, alerte } = req.body;
     try {
-        const newBassin = { id: mockBassins.length + 1, ...req.body };
-        mockBassins.push(newBassin);
-        res.status(201).json(newBassin);
+        const result = await db.query(
+            `INSERT INTO bassins (nom, espece, densite, population, statut, oxygene, temperature, dernier_repas, alerte)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+            [nom, espece, densite || 0, population || 0, statut || 'Optimal', oxygene || 7.0, temperature || 22.0, dernier_repas || '--:--', alerte || false]
+        );
+        res.status(201).json(result.rows[0]);
     } catch (error) {
         console.error('❌ Erreur createBassin:', error);
         res.status(500).json({ error: 'Erreur serveur' });
     }
 };
 
-exports.updateBassin = (req, res) => {
+exports.updateBassin = async (req, res) => {
+    const { nom, espece, densite, population, statut, oxygene, temperature, dernier_repas, alerte } = req.body;
     try {
-        const index = mockBassins.findIndex(b => b.id === parseInt(req.params.id));
-        if (index === -1) return res.status(404).json({ error: 'Bassin non trouvé' });
-        mockBassins[index] = { ...mockBassins[index], ...req.body };
-        res.json(mockBassins[index]);
+        let updateAlerte = alerte;
+        let updateStatut = statut;
+        
+        if (oxygene !== undefined) {
+            updateAlerte = parseFloat(oxygene) < 5.0;
+            updateStatut = updateAlerte ? 'Attention' : 'Optimal';
+        }
+        
+        const result = await db.query(
+            `UPDATE bassins SET 
+                nom = COALESCE($1, nom),
+                espece = COALESCE($2, espece),
+                densite = COALESCE($3, densite),
+                population = COALESCE($4, population),
+                statut = COALESCE($5, statut),
+                oxygene = COALESCE($6, oxygene),
+                temperature = COALESCE($7, temperature),
+                dernier_repas = COALESCE($8, dernier_repas),
+                alerte = COALESCE($9, alerte),
+                updated_at = CURRENT_TIMESTAMP
+             WHERE id = $10 RETURNING *`,
+            [nom, espece, densite, population, updateStatut || statut, oxygene, temperature, dernier_repas, updateAlerte, req.params.id]
+        );
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Bassin non trouvé' });
+        }
+        res.json(result.rows[0]);
     } catch (error) {
         console.error('❌ Erreur updateBassin:', error);
         res.status(500).json({ error: 'Erreur serveur' });
     }
 };
 
-exports.deleteBassin = (req, res) => {
+exports.deleteBassin = async (req, res) => {
+    const client = await db.pool.connect();
     try {
-        const index = mockBassins.findIndex(b => b.id === parseInt(req.params.id));
-        if (index === -1) return res.status(404).json({ error: 'Bassin non trouvé' });
-        mockBassins.splice(index, 1);
-        res.json({ message: 'Bassin supprimé avec succès' });
+        await client.query('BEGIN');
+        await client.query('DELETE FROM qualite_eau WHERE bassin_id = $1', [req.params.id]);
+        const result = await client.query('DELETE FROM bassins WHERE id = $1 RETURNING *', [req.params.id]);
+        if (result.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ error: 'Bassin non trouvé' });
+        }
+        await client.query('COMMIT');
+        res.json({ message: 'Bassin et ses mesures supprimés avec succès' });
     } catch (error) {
+        await client.query('ROLLBACK');
         console.error('❌ Erreur deleteBassin:', error);
         res.status(500).json({ error: 'Erreur serveur' });
+    } finally {
+        client.release();
     }
 };

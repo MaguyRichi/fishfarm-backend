@@ -1,59 +1,74 @@
-//const db = require('../config/database');
+const db = require('../config/database');
 
-exports.getStats = (req, res) => {
+exports.getStats = async (req, res) => {
     try {
-        const stats = {
-            bassinsTotal: 4,
-            poissonsTotal: 650,
-            tauxOccupation: 85,
+        const result = await db.query(
+            `SELECT 
+                COUNT(*) as bassins_actifs,
+                COALESCE(SUM(population), 0) as total_poissons,
+                COALESCE(AVG(densite), 0) as taux_occupation
+             FROM bassins`
+        );
+        res.json({
+            bassinsTotal: result.rows[0]?.bassins_actifs || 0,
+            poissonsTotal: result.rows[0]?.total_poissons || 0,
+            tauxOccupation: result.rows[0]?.taux_occupation || 0,
             productionJournaliere: 45.2
-        };
-        res.json(stats);
+        });
     } catch (error) {
-        console.error(error);
+        console.error('❌ Erreur getStats:', error);
         res.status(500).json({ error: 'Erreur serveur' });
     }
 };
 
-exports.getWaterQuality = (req, res) => {
+exports.getWaterQuality = async (req, res) => {
     try {
-        const qualite = {
-            temperature: 22.0,
-            oxygene: 8.5,
-            ph: 7.2,
-            ammoniac: 0.02
-        };
-        res.json(qualite);
+        const result = await db.query(
+            `SELECT 
+                AVG(temperature) as temperature,
+                AVG(oxygene) as oxygene,
+                AVG(ph) as ph,
+                AVG(ammoniac) as ammoniac
+             FROM qualite_eau
+             WHERE date_mesure >= NOW() - INTERVAL '24 hours'`
+        );
+        res.json({
+            temperature: parseFloat(result.rows[0]?.temperature) || 22.0,
+            oxygene: parseFloat(result.rows[0]?.oxygene) || 8.5,
+            ph: parseFloat(result.rows[0]?.ph) || 7.2,
+            ammoniac: parseFloat(result.rows[0]?.ammoniac) || 0.02
+        });
     } catch (error) {
-        console.error(error);
+        console.error('❌ Erreur getWaterQuality:', error);
         res.status(500).json({ error: 'Erreur serveur' });
     }
 };
 
-exports.getAlerts = (req, res) => {
+exports.getAlerts = async (req, res) => {
     try {
-        const alerts = [
-            { type_alerte: 'Température', niveau: 'Alerte', bassin_nom: 'Bassin C', valeur: 23, seuil: 22, description: 'Température élevée', date_alerte: '2026-06-22' },
-            { type_alerte: 'Oxygène', niveau: 'Alerte', bassin_nom: 'Bassin C', valeur: 4.5, seuil: 5.0, description: "Niveau d'oxygène bas", date_alerte: '2026-06-22' }
-        ];
-        res.json(alerts);
+        const result = await db.query(
+            `SELECT * FROM alertes ORDER BY date_alerte DESC LIMIT 10`
+        );
+        res.json(result.rows);
     } catch (error) {
-        console.error(error);
+        console.error('❌ Erreur getAlerts:', error);
         res.status(500).json({ error: 'Erreur serveur' });
     }
 };
 
-exports.getKPIs = (req, res) => {
+exports.getKPIs = async (req, res) => {
     try {
-        const kpis = {
-            poidsMoyen: 145.5,
+        const poids = await db.query(
+            `SELECT AVG(poids_moyen) as poids_moyen FROM echantillonnages ORDER BY date_echantillon DESC LIMIT 5`
+        );
+        res.json({
+            poidsMoyen: parseFloat(poids.rows[0]?.poids_moyen) || 0,
             croissanceJour: 2.3,
             tauxMortalite: 0.05,
             densiteMoyenne: 42.5
-        };
-        res.json(kpis);
+        });
     } catch (error) {
-        console.error(error);
+        console.error('❌ Erreur getKPIs:', error);
         res.status(500).json({ error: 'Erreur serveur' });
     }
 };

@@ -1,89 +1,113 @@
-//const db = require('../config/database');
+const db = require('../config/database');
 
-const mockStocks = [
-    { id: 1, type_nourriture: 'Aliment Tilapia', quantite: 150, unite: 'kg', statut: 'Bon', seuil_alerte: 50, jours_restants: 10 },
-    { id: 2, type_nourriture: 'Aliment Sea Bass', quantite: 200, unite: 'kg', statut: 'Bon', seuil_alerte: 60, jours_restants: 12 },
-    { id: 3, type_nourriture: 'Aliment Truite', quantite: 80, unite: 'kg', statut: 'Attention', seuil_alerte: 30, jours_restants: 5 }
-];
-
-const mockSessions = [
-    { id: 1, heure: '08:00', periode: 'MATIN', bassin_nom: 'Bassin A', espece: 'Tilapia', quantite: 25, type_nourriture: 'Aliment Tilapia', statut: 'PROGRAMMÉ' },
-    { id: 2, heure: '08:30', periode: 'MATIN', bassin_nom: 'Bassin B', espece: 'Sea Bass', quantite: 30, type_nourriture: 'Aliment Sea Bass', statut: 'PROGRAMMÉ' },
-    { id: 3, heure: '12:00', periode: 'MIDI', bassin_nom: 'Bassin C', espece: 'Truite Arc-en-ciel', quantite: 20, type_nourriture: 'Aliment Truite', statut: 'PROGRAMMÉ' }
-];
-
-exports.getStocks = (req, res) => {
+exports.getStocks = async (req, res) => {
     try {
-        res.json(mockStocks);
+        const result = await db.query('SELECT * FROM stocks ORDER BY id');
+        res.json(result.rows);
     } catch (error) {
-        console.error(error);
+        console.error('❌ Erreur getStocks:', error);
         res.status(500).json({ error: 'Erreur serveur' });
     }
 };
 
-exports.addStock = (req, res) => {
+exports.addStock = async (req, res) => {
+    const { type_nourriture, quantite, unite, statut, seuil_alerte, jours_restants } = req.body;
     try {
-        const newStock = { id: mockStocks.length + 1, ...req.body };
-        mockStocks.push(newStock);
-        res.status(201).json(newStock);
+        const result = await db.query(
+            `INSERT INTO stocks (type_nourriture, quantite, unite, statut, seuil_alerte, jours_restants)
+             VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+            [type_nourriture, quantite, unite || 'kg', statut || 'Bon', seuil_alerte || 50, jours_restants || 10]
+        );
+        res.status(201).json(result.rows[0]);
     } catch (error) {
-        console.error(error);
+        console.error('❌ Erreur addStock:', error);
         res.status(500).json({ error: 'Erreur serveur' });
     }
 };
 
-exports.updateStock = (req, res) => {
+exports.updateStock = async (req, res) => {
+    const { type_nourriture, quantite, unite, statut, seuil_alerte, jours_restants } = req.body;
     try {
-        const index = mockStocks.findIndex(s => s.id === parseInt(req.params.id));
-        if (index === -1) return res.status(404).json({ error: 'Stock non trouvé' });
-        mockStocks[index] = { ...mockStocks[index], ...req.body };
-        res.json(mockStocks[index]);
+        const result = await db.query(
+            `UPDATE stocks SET 
+                type_nourriture = COALESCE($1, type_nourriture),
+                quantite = COALESCE($2, quantite),
+                unite = COALESCE($3, unite),
+                statut = COALESCE($4, statut),
+                seuil_alerte = COALESCE($5, seuil_alerte),
+                jours_restants = COALESCE($6, jours_restants)
+             WHERE id = $7 RETURNING *`,
+            [type_nourriture, quantite, unite, statut, seuil_alerte, jours_restants, req.params.id]
+        );
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Stock non trouvé' });
+        }
+        res.json(result.rows[0]);
     } catch (error) {
-        console.error(error);
+        console.error('❌ Erreur updateStock:', error);
         res.status(500).json({ error: 'Erreur serveur' });
     }
 };
 
-exports.deleteStock = (req, res) => {
+exports.deleteStock = async (req, res) => {
     try {
-        const index = mockStocks.findIndex(s => s.id === parseInt(req.params.id));
-        if (index === -1) return res.status(404).json({ error: 'Stock non trouvé' });
-        mockStocks.splice(index, 1);
+        const result = await db.query('DELETE FROM stocks WHERE id = $1 RETURNING *', [req.params.id]);
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Stock non trouvé' });
+        }
         res.json({ message: 'Stock supprimé' });
     } catch (error) {
-        console.error(error);
+        console.error('❌ Erreur deleteStock:', error);
         res.status(500).json({ error: 'Erreur serveur' });
     }
 };
 
-exports.getSessions = (req, res) => {
+exports.getSessions = async (req, res) => {
     try {
-        res.json(mockSessions);
+        const result = await db.query('SELECT * FROM sessions_nourriture ORDER BY id');
+        res.json(result.rows);
     } catch (error) {
-        console.error(error);
+        console.error('❌ Erreur getSessions:', error);
         res.status(500).json({ error: 'Erreur serveur' });
     }
 };
 
-exports.addSession = (req, res) => {
+exports.addSession = async (req, res) => {
+    const { heure, periode, bassin_nom, espece, quantite, type_nourriture, statut } = req.body;
     try {
-        const newSession = { id: mockSessions.length + 1, ...req.body };
-        mockSessions.push(newSession);
-        res.status(201).json(newSession);
+        const result = await db.query(
+            `INSERT INTO sessions_nourriture (heure, periode, bassin_nom, espece, quantite, type_nourriture, statut)
+             VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+            [heure, periode || 'MATIN', bassin_nom, espece, quantite, type_nourriture, statut || 'PROGRAMMÉ']
+        );
+        res.status(201).json(result.rows[0]);
     } catch (error) {
-        console.error(error);
+        console.error('❌ Erreur addSession:', error);
         res.status(500).json({ error: 'Erreur serveur' });
     }
 };
 
-exports.updateSession = (req, res) => {
+exports.updateSession = async (req, res) => {
+    const { heure, periode, bassin_nom, espece, quantite, type_nourriture, statut } = req.body;
     try {
-        const index = mockSessions.findIndex(s => s.id === parseInt(req.params.id));
-        if (index === -1) return res.status(404).json({ error: 'Session non trouvée' });
-        mockSessions[index] = { ...mockSessions[index], ...req.body };
-        res.json(mockSessions[index]);
+        const result = await db.query(
+            `UPDATE sessions_nourriture SET 
+                heure = COALESCE($1, heure),
+                periode = COALESCE($2, periode),
+                bassin_nom = COALESCE($3, bassin_nom),
+                espece = COALESCE($4, espece),
+                quantite = COALESCE($5, quantite),
+                type_nourriture = COALESCE($6, type_nourriture),
+                statut = COALESCE($7, statut)
+             WHERE id = $8 RETURNING *`,
+            [heure, periode, bassin_nom, espece, quantite, type_nourriture, statut, req.params.id]
+        );
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Session non trouvée' });
+        }
+        res.json(result.rows[0]);
     } catch (error) {
-        console.error(error);
+        console.error('❌ Erreur updateSession:', error);
         res.status(500).json({ error: 'Erreur serveur' });
     }
 };
