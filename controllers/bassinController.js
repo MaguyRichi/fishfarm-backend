@@ -1,6 +1,5 @@
-//const db = require('../config/database');
+// ✅ PAS d'import de db ici !
 
-// ✅ DONNÉES MOCKÉES UNIQUEMENT - PAS DE DB
 const mockBassins = [
     { id: 1, nom: 'Bassin A', espece: 'Tilapia', densite: 2.5, population: 150, statut: 'Optimal', oxygene: 8.5, temperature: 22.0, dernier_repas: '08:00', alerte: false },
     { id: 2, nom: 'Bassin B', espece: 'Sea Bass', densite: 3.0, population: 200, statut: 'Optimal', oxygene: 7.8, temperature: 21.0, dernier_repas: '09:30', alerte: false },
@@ -12,7 +11,7 @@ exports.getAllBassins = (req, res) => {
     try {
         res.json(mockBassins);
     } catch (error) {
-        console.error(error);
+        console.error('❌ Erreur getAllBassins:', error);
         res.status(500).json({ error: 'Erreur serveur' });
     }
 };
@@ -25,7 +24,7 @@ exports.getBassinById = (req, res) => {
         }
         res.json(bassin);
     } catch (error) {
-        console.error(error);
+        console.error('❌ Erreur getBassinById:', error);
         res.status(500).json({ error: 'Erreur serveur' });
     }
 };
@@ -36,7 +35,7 @@ exports.createBassin = (req, res) => {
         mockBassins.push(newBassin);
         res.status(201).json(newBassin);
     } catch (error) {
-        console.error(error);
+        console.error('❌ Erreur createBassin:', error);
         res.status(500).json({ error: 'Erreur serveur' });
     }
 };
@@ -48,7 +47,7 @@ exports.updateBassin = (req, res) => {
         mockBassins[index] = { ...mockBassins[index], ...req.body };
         res.json(mockBassins[index]);
     } catch (error) {
-        console.error(error);
+        console.error('❌ Erreur updateBassin:', error);
         res.status(500).json({ error: 'Erreur serveur' });
     }
 };
@@ -60,7 +59,7 @@ exports.deleteBassin = (req, res) => {
         mockBassins.splice(index, 1);
         res.json({ message: 'Bassin supprimé avec succès' });
     } catch (error) {
-        console.error(error);
+        console.error('❌ Erreur deleteBassin:', error);
         res.status(500).json({ error: 'Erreur serveur' });
     }
 };
