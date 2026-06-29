@@ -4,15 +4,28 @@ exports.getStats = async (req, res) => {
     try {
         const result = await db.query(
             `SELECT 
-                COUNT(*) as bassins_actifs,
-                COALESCE(SUM(population), 0) as total_poissons,
-                COALESCE(AVG(densite), 0) as taux_occupation
+                COUNT(*) as bassinsTotal,
+                COALESCE(SUM(population), 0) as poissonsTotal,
+                COALESCE(AVG(densite), 0) as tauxOccupation,
+                45.2 as productionJournaliere
              FROM bassins`
         );
-        res.json({
-            bassinsTotal: result.rows[0]?.bassins_actifs || 0,
-            poissonsTotal: result.rows[0]?.total_poissons || 0,
-            tauxOccupation: result.rows[0]?.taux_occupation || 0,
+        
+        // ✅ Limiter le taux d'occupation à 100% max
+        if (result.rows[0]) {
+            let tauxOccupation = parseFloat(result.rows[0].tauxoccupation) || 0;
+            // Capacité maximale estimée à 50 kg/m³
+            const capaciteMax = 50;
+            tauxOccupation = (tauxOccupation / capaciteMax) * 100;
+            if (tauxOccupation > 100) tauxOccupation = 100;
+            if (tauxOccupation < 0) tauxOccupation = 0;
+            result.rows[0].tauxoccupation = tauxOccupation;
+        }
+        
+        res.json(result.rows[0] || {
+            bassinsTotal: 0,
+            poissonsTotal: 0,
+            tauxOccupation: 0,
             productionJournaliere: 45.2
         });
     } catch (error) {
@@ -25,18 +38,18 @@ exports.getWaterQuality = async (req, res) => {
     try {
         const result = await db.query(
             `SELECT 
-                AVG(temperature) as temperature,
-                AVG(oxygene) as oxygene,
-                AVG(ph) as ph,
-                AVG(ammoniac) as ammoniac
+                COALESCE(AVG(temperature), 22.0) as temperature,
+                COALESCE(AVG(oxygene), 7.0) as oxygene,
+                COALESCE(AVG(ph), 7.0) as ph,
+                COALESCE(AVG(ammoniac), 0.02) as ammoniac
              FROM qualite_eau
              WHERE date_mesure >= NOW() - INTERVAL '24 hours'`
         );
-        res.json({
-            temperature: parseFloat(result.rows[0]?.temperature) || 22.0,
-            oxygene: parseFloat(result.rows[0]?.oxygene) || 8.5,
-            ph: parseFloat(result.rows[0]?.ph) || 7.2,
-            ammoniac: parseFloat(result.rows[0]?.ammoniac) || 0.02
+        res.json(result.rows[0] || {
+            temperature: 22.0,
+            oxygene: 7.0,
+            ph: 7.0,
+            ammoniac: 0.02
         });
     } catch (error) {
         console.error('❌ Erreur getWaterQuality:', error);
@@ -46,9 +59,91 @@ exports.getWaterQuality = async (req, res) => {
 
 exports.getAlerts = async (req, res) => {
     try {
+        // ✅ Récupérer les alertes réelles depuis la base
         const result = await db.query(
-            `SELECT * FROM alertes ORDER BY date_alerte DESC LIMIT 10`
+            `SELECT 
+                a.id,
+                a.type_alerte,
+                a.niveau,
+                a.bassin_nom,
+                a.valeur,
+                a.seuil,
+                a.description,
+                a.date_alerte,
+                a.resolved
+             FROM alertes a
+             WHERE (a.resolved = false OR a.resolved IS NULL)
+             ORDER BY a.date_alerte DESC
+             LIMIT 10`
         );
+        
+        // Si aucune alerte en base, générer des alertes dynamiques
+        if (result.rows.length === 0) {
+            const alerts = [];
+            
+            // Vérifier les bassins avec oxygène critique (< 5.0 mg/L)
+            const bassinsCritiques = await db.query(
+                `SELECT id, nom, oxygene FROM bassins WHERE oxygene < 5.0`
+            );
+            
+            bassinsCritiques.rows.forEach(bassin => {
+                alerts.push({
+                    type_alerte: 'Oxygène',
+                    niveau: 'Alerte',
+                    bassin_nom: bassin.nom,
+                    valeur: parseFloat(bassin.oxygene),
+                    seuil: 5.0,
+                    description: `Niveau d'oxygène bas (${parseFloat(bassin.oxygene).toFixed(1)} mg/L)`,
+                    date_alerte: new Date().toISOString().split('T')[0],
+                    resolved: false
+                });
+            });
+            
+            // Vérifier les températures élevées (> 26°C)
+            const bassinsChauds = await db.query(
+                `SELECT id, nom, temperature FROM bassins WHERE temperature > 26.0`
+            );
+            
+            bassinsChauds.rows.forEach(bassin => {
+                alerts.push({
+                    type_alerte: 'Température',
+                    niveau: 'Alerte',
+                    bassin_nom: bassin.nom,
+                    valeur: parseFloat(bassin.temperature),
+                    seuil: 26.0,
+                    description: `Température élevée (${parseFloat(bassin.temperature).toFixed(1)}°C)`,
+                    date_alerte: new Date().toISOString().split('T')[0],
+                    resolved: false
+                });
+            });
+            
+            // Vérifier le pH hors norme (< 6.5 ou > 8.5)
+            const bassinsPH = await db.query(
+                `SELECT q.bassin_id, b.nom, q.ph 
+                 FROM qualite_eau q
+                 JOIN bassins b ON q.bassin_id = b.id
+                 WHERE q.ph < 6.5 OR q.ph > 8.5
+                 ORDER BY q.date_mesure DESC
+                 LIMIT 5`
+            );
+            
+            bassinsPH.rows.forEach(phMesure => {
+                const niveau = parseFloat(phMesure.ph) < 6.5 ? 'Bas' : 'Élevé';
+                alerts.push({
+                    type_alerte: 'pH',
+                    niveau: 'Alerte',
+                    bassin_nom: phMesure.nom,
+                    valeur: parseFloat(phMesure.ph),
+                    seuil: 7.0,
+                    description: `pH ${niveau} (${parseFloat(phMesure.ph).toFixed(1)})`,
+                    date_alerte: new Date().toISOString().split('T')[0],
+                    resolved: false
+                });
+            });
+            
+            return res.json(alerts);
+        }
+        
         res.json(result.rows);
     } catch (error) {
         console.error('❌ Erreur getAlerts:', error);
