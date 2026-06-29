@@ -1,38 +1,51 @@
+
 const db = require('../config/database');
 
 exports.getStats = async (req, res) => {
     try {
         const result = await db.query(
             `SELECT 
-                COUNT(*) as bassinsTotal,
-                COALESCE(SUM(population), 0) as poissonsTotal,
-                COALESCE(AVG(densite), 0) as tauxOccupation,
-                45.2 as productionJournaliere
+                COUNT(*) as "bassinsTotal",
+                COALESCE(SUM(population), 0) as "poissonsTotal",
+                COALESCE(AVG(densite), 0) as "tauxOccupation",
+                45.2 as "productionJournaliere"
              FROM bassins`
         );
         
-        // ✅ Limiter le taux d'occupation à 100% max
-        if (result.rows[0]) {
-            let tauxOccupation = parseFloat(result.rows[0].tauxoccupation) || 0;
-            // Capacité maximale estimée à 50 kg/m³
+        if (result.rows.length > 0) {
+            const stats = result.rows[0];
+            // ✅ Convertir les valeurs numériques
+            const bassinsTotal = parseInt(stats.bassinsTotal) || 0;
+            const poissonsTotal = parseInt(stats.poissonsTotal) || 0;
+            let tauxOccupation = parseFloat(stats.tauxOccupation) || 0;
+            
+            // ✅ Limiter le taux d'occupation à 100%
             const capaciteMax = 50;
             tauxOccupation = (tauxOccupation / capaciteMax) * 100;
             if (tauxOccupation > 100) tauxOccupation = 100;
             if (tauxOccupation < 0) tauxOccupation = 0;
-            result.rows[0].tauxoccupation = tauxOccupation;
+            
+            res.json({
+                bassinsTotal: bassinsTotal,
+                poissonsTotal: poissonsTotal,
+                tauxOccupation: tauxOccupation,
+                productionJournaliere: 45.2
+            });
+        } else {
+            res.json({
+                bassinsTotal: 0,
+                poissonsTotal: 0,
+                tauxOccupation: 0,
+                productionJournaliere: 0
+            });
         }
-        
-        res.json(result.rows[0] || {
-            bassinsTotal: 0,
-            poissonsTotal: 0,
-            tauxOccupation: 0,
-            productionJournaliere: 45.2
-        });
     } catch (error) {
         console.error('❌ Erreur getStats:', error);
-        res.status(500).json({ error: 'Erreur serveur' });
+        res.status(500).json({ error: 'Erreur serveur', details: error.message });
     }
 };
+
+// ... le reste du code
 
 exports.getWaterQuality = async (req, res) => {
     try {
